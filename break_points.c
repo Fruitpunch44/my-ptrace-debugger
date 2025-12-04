@@ -1,0 +1,38 @@
+#include"break_points.h"
+
+break_point* create_breakpoint_list(uint64_t address,uint64_t data){
+  break_point* new_break_point= malloc(sizeof(break_point));
+  if(!new_break_point){
+    fprintf(stderr,"unable to allocate space");
+    exit(EXIT_FAILURE);
+  }
+  new_break_point->address=address;
+  new_break_point->data =data;
+  new_break_point->next = NULL;
+  return new_break_point;
+}
+
+//insert to the break_point_list
+void add_breakpoint(break_point** head, uint64_t address,uint64_t data){
+  break_point* new_entry= create_breakpoint_list(address,data);
+  if(*head == NULL){
+    *head = new_entry;
+    return;
+  }
+  break_point* temp = *head;
+  while(temp->next !=NULL){
+    temp = temp -> next;
+  }
+  temp->next = new_entry;
+}
+
+void print_current_break_point(break_point* head){
+  break_point* temp = head;
+  int number = 0;//index the entries 
+  while(temp != NULL){
+    fprintf(stdout,"[%d]: address--> %llx  value--> %llx",number,temp->address,temp->data);
+    temp = temp->next;
+    number++;
+  }
+  printf("NO ENTRY/NULL\n");
+}
