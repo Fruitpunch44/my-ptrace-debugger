@@ -34,7 +34,7 @@ void load_program(const char *program){
   execl(program,program,NULL);
 }
 
-void dissassemble_instruction(pid_t child_proc){
+void dissassemble_instruction(pid_t child_proc,char *func_name){
   int wait_status;
   pid_t dissasembly=fork();
   if(dissasembly ==0){
@@ -42,7 +42,7 @@ void dissassemble_instruction(pid_t child_proc){
     sprintf(my_pid,"%d",child_proc);
     fprintf(stdout,"pid is %s",my_pid);
     char my_commands[100];
-    snprintf(my_commands,sizeof(my_commands),"objdump -d /proc/%s/exe -M Intel | grep -A 20 '<main>:'",my_pid);
+    snprintf(my_commands,sizeof(my_commands),"objdump --disassemble=%s /proc/%s/exe -M intel ",func_name,my_pid);
     //inacurate find a way to print out the current instruction only
     system(my_commands);
     exit(EXIT_SUCCESS);
@@ -98,14 +98,14 @@ int main(int argc, char *argv[])
 
   //check for file existence
   if(access(program,F_OK) == 0 && access(program,R_OK)==0){
-    fprintf(stdout,"the program exists %s",program);
+    fprintf(stdout,"the program exists %s\n",program);
   }
   else{
-    fprintf(stdout,"file does not exists %s",program);
+    fprintf(stdout,"file does not exists %s\n",program);
   }
 
-  if(argc < 3){
-    fprintf(stderr,"not enough arguments",argv[2]);
+  if(argc < 2){
+    fprintf(stderr,"not enough arguments\n",argv[1]);
     exit(EXIT_FAILURE);
   }
   pid_t child;
@@ -135,6 +135,7 @@ int main(int argc, char *argv[])
         fprintf(stderr,"error in ptrace_cont %s",strerror(errno));
         exit(EXIT_FAILURE);
       }
+      //turn this to a function later
       waitpid(child,&wait_status,0);
       print_wait_status(wait_status);
     }
@@ -145,7 +146,11 @@ int main(int argc, char *argv[])
       list_registers(child);
     }
     else if(strncmp(commands,"disassemble",strlen("disassemble")) == 0){
-      dissassemble_instruction(child);
+      char func[64];
+      fprintf(stdout,"enter the func you want to disassemble: ");
+      fgets(func,sizeof(func),stdin);
+      func[strcspn(func,"\n")] =0;
+      dissassemble_instruction(child,func);
     }
     else if(strncmp(commands,"exit",strlen("exit"))==0){
       fprintf(stdout,"exiting debugger\n");
