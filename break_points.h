@@ -8,12 +8,12 @@
 typedef struct breakpoints{
     uint64_t address;
     uint64_t data;
-    break_point* next;
+    struct breakpoints* next;
 }break_point;
 
 break_point* create_breakpoint_list(uint64_t address,uint64_t data);
 void add_breakpoint(break_point** head, uint64_t address,uint64_t data);
-void print_current_break_point(break_point* head);
+void print_break_point(break_point* head);
 
 
 #endif

@@ -10,13 +10,14 @@
 #include<errno.h>
 #include<string.h>
 
+
 void list_registers(pid_t child);
+void print_wait_status(int wait_status);
 void set_break_point(pid_t child_proc,uint64_t address);
-void load_program(pid_t child_proc,const char *program);
+void load_program(const char *program);
 void next_instruction(pid_t child_proc);
 void modify_reg(pid_t child_proc,uint64_t reg,uint64_t value);
-
-
+void dissassemble_instruction(pid_t child_proc);
 
 
 
