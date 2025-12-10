@@ -37,15 +37,21 @@ void load_program(const char *program){
 void dissassemble_instruction(pid_t child_proc){
   int wait_status;
   pid_t dissasembly=fork();
-  waitpid(dissasembly,&wait_status,0);
   if(dissasembly ==0){
-    char *my_pid;
-    sprintf(my_pid,%d,child_proc);
+    char my_pid[20];
+    sprintf(my_pid,"%d",child_proc);
     fprintf(stdout,"pid is %s",my_pid);
-    const char my_commands[100];
+    char my_commands[100];
     snprintf(my_commands,sizeof(my_commands),"objdump -d /proc/%s/exe -M Intel | grep -A 20 '<main>:'",my_pid);
-    execl(my_commands,my_commands,NULL);
+    //inacurate find a way to print out the current instruction only
+    system(my_commands);
+    exit(EXIT_SUCCESS);
+  }
+  else{
+    waitpid(dissasembly,&wait_status,0);
+  }
 }
+
 void set_break_point(pid_t child_proc,uint64_t address){
   uint64_t new_data;
   uint64_t INT3 = 0xcc;//signal to set break point
@@ -66,6 +72,8 @@ void next_instruction(pid_t child_proc){
   waitpid(child_proc,&wait_status,0);
 }
 
+//add continue
+void continue(pid_t child_proc);
 
 void list_registers(pid_t child_proc){
   struct user_regs_struct regs;
@@ -86,7 +94,7 @@ int main(int argc, char *argv[])
 {
   const char *program = argv[2];
   int wait_status;
-  char *commands[212];
+  char commands[212];
 
   //check for file existence
   if(access(program,F_OK) == 0 && access(program,R_OK)==0){
@@ -105,13 +113,48 @@ int main(int argc, char *argv[])
   if(child == 0){
     load_program(program);
   }
-  while(1){
+  else{
     waitpid(child,&wait_status,0);
     print_wait_status(wait_status);
-  
+  }
+  while(1){
+
+    fprintf(stdout,"my_dbg> ");
+    fgets(commands,sizeof(commands),stdin);
+    commands[strcspn(commands,"\n")] = 0;//remove newline character
+
+    if(strncmp(commands,"break",strlen("break")) == 0){
+      char address_str[20];
+      fprintf(stdout,"enter address to set break point: ");
+      fgets(address_str,sizeof(address_str),stdin);
+      uint64_t address = strtoull(address_str,NULL,16);//convert string to uint64_t
+      set_break_point(child,address);
+    }
+    else if(strncmp(commands,"continue",strlen("continue")) == 0){
+      if(ptrace(PTRACE_CONT,child,NULL,NULL)<0){
+        fprintf(stderr,"error in ptrace_cont %s",strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+      waitpid(child,&wait_status,0);
+      print_wait_status(wait_status);
+    }
+    else if(strncmp(commands,"step",strlen("step")) == 0){
+      next_instruction(child);
+    }
+    else if(strncmp(commands,"registers",strlen("registers")) == 0){
+      list_registers(child);
+    }
+    else if(strncmp(commands,"disassemble",strlen("disassemble")) == 0){
+      dissassemble_instruction(child);
+    }
+    else if(strncmp(commands,"exit",strlen("exit"))==0){
+      fprintf(stdout,"exiting debugger\n");
+      exit(EXIT_SUCCESS);
+    }
+    else{
+      fprintf(stdout,"unknown command %s",commands);
     }
     
   }
-
-
+  return 0;
 }
