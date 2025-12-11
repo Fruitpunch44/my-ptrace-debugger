@@ -26,6 +26,7 @@ void add_breakpoint(break_point** head, uint64_t address,uint64_t data){
   temp->next = new_entry;
 }
 
+//kind useless remove later
 break_point* find_breakpoint(break_point* head ,uint64_t address){
   break_point *temp =head;
   while(temp !=NULL){
@@ -41,12 +42,12 @@ void print_break_points(break_point* head){
   break_point* temp = head;
   int number = 0;//index the entries 
   while(temp != NULL){
-    fprintf(stdout,"[%d]: address--> %llx  value--> %llx",number,temp->address,temp->data);
+    fprintf(stdout,"[%d]: address--> %llx  value--> %llx\n",number,temp->address,temp->data);
     temp = temp->next;
     number++;
   }
-  printf("NO ENTRY/NULL\n");
-  return NULL;
+  printf("No breakpoint entry\n");
+  return;
 }
 void delete_breakpoint_list(break_point** head,int position){
   if(*head ==NULL){

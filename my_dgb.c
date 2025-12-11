@@ -63,6 +63,23 @@ void set_break_point(pid_t child_proc,uint64_t address){
   add_breakpoint(&break_point_list,address,data);
 }
 
+void delete_break_point(pid_t child_proc,int postion){
+  break_point *bp = break_point_list;
+  for(int i =0; bp!=NULL && i<postion;i++){
+  bp=bp->next;
+  }
+  if(bp==NULL){
+    fprintf(stderr,"break point not found");
+  }
+  //remove int 3 signal
+  if(ptreace(PTRACE_POKEDATA,child_proc,(void*)bp->address,bp->data) <0){
+    fprintf(stderr,"error in restoring instruction %s",strerror(errno));
+    return;
+  }
+  fprintf(stdout,"have removed break_point at %d at address 0x%llx",position,bp->address);
+  delete_breakpoint_list(&break_point_list,position);
+}
+
 void next_instruction(pid_t child_proc){
   int wait_status;
   if(ptrace(PTRACE_SINGLESTEP,child_proc,NULL,NULL) < 0){
@@ -152,9 +169,21 @@ int main(int argc, char *argv[])
       func[strcspn(func,"\n")] =0;
       dissassemble_instruction(child,func);
     }
+    else if(strncmp(commands,"list b",strlen("list b"))==0){
+      print_break_point(&break_point_list);
+    }
     else if(strncmp(commands,"exit",strlen("exit"))==0){
       fprintf(stdout,"exiting debugger\n");
       exit(EXIT_SUCCESS);
+    }
+    else if(strncmp(commands,"delete b",strlen("delete b"))==0){
+      char position_str[10];
+      print_break_points(&break_point_list);
+      fprintf(stdout,"enter break point position to delete: ");
+      fgets(position_str,sizeof(position_str),stdin);
+      position_str[strcspn(position_str,"\n")];
+      int position = atoi(position_str);
+      delete_break_point(child,position);
     }
     else{
       fprintf(stdout,"unknown command %s",commands);

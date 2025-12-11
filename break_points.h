@@ -13,7 +13,8 @@ typedef struct breakpoints{
 
 break_point* create_breakpoint_list(uint64_t address,uint64_t data);
 void add_breakpoint(break_point** head, uint64_t address,uint64_t data);
-void print_break_point(break_point* head);
+void print_break_points(break_point* head);
+void delete_breakpoint_list(break_point** head,int position);
 
 
 #endif
