@@ -48,3 +48,29 @@ void print_break_points(break_point* head){
   printf("NO ENTRY/NULL\n");
   return NULL;
 }
+void delete_breakpoint_list(break_point** head,int position){
+  if(*head ==NULL){
+    fprintf(stderr,"empty lis");
+    return;
+  }
+  break_point* temp= *head;
+  if(position == 0){
+    *head = temp->next;
+    fprintf(stdout,"have removed break point at point %d",position);
+    free(temp);
+    return;
+  }
+
+  for(int i=0 ;temp!=NULL && i<position-1;i++){
+    temp=temp->next;
+  }
+  if(temp == NULL ||temp->next ==NULL){
+    fprintf(stderr,"out of range");
+    return;
+  }
+  break_point *next= temp->next->next;
+  free(temp->next);
+  temp->next=next;
+  fprintf(stdout,"have removed break point %d",position);
+
+}
