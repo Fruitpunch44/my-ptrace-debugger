@@ -26,6 +26,7 @@ void print_wait_status(int status){
 }
 
 void load_program(const char *program){
+  personality(ADDR_NO_RANDOMIZE); //disable aslr
   fprintf(stdout,"LOADING PROGRAM %s",program);
   if(ptrace(PTRACE_TRACEME,0,NULL,NULL)<0){
     fprintf(stderr,"error in ptrace_traceme\n");
@@ -91,6 +92,35 @@ void next_instruction(pid_t child_proc){
 
 //add continue
 void continue(pid_t child_proc);
+
+void dump_bytes(uint64_t data){
+  unsigned char *bytes= (unsigned char*)&data;//always cast to unsigned char
+  for(size_t i=0; i <sizeof(uint64_t);i++){
+    if(i%16 ==0){
+      fprintf(stdout,"\n%08lx: ",(unsigned long)i);
+    }
+    fprintf(stdout,"%02x",bytes[i]);
+  }
+  fprintf(stdout,"\n");
+}
+
+void get_current_rip(pid_t child_proc){
+  struct user_regs_struct regs;
+  if(ptrace(PTRACE_GETREGS,child_proc,NULL,&regs)<0){
+    fprintf(stderr,"error in ptrace_getregs %s",strerror(errno));
+    return;
+  }
+  uint64_t current_rip= regs.rip;
+  fprintf(stdout,"rip is at -->0x%llx",current_rip);//debugging purposes
+
+  errno=0;
+  uint64_t data = ptrace(PTRACE_PEEKDATA,child_proc,(void*)current_rip,NULL);
+  if (errno != 0) {
+    fprintf(stderr,"error in ptrace_peekdata %s",strerror(errno));
+    return;
+  }
+  fprintf(stdout,"Read 8 bytes at 0x%llx: %016lx\n",current_rip,data);
+}
 
 void list_registers(pid_t child_proc){
   struct user_regs_struct regs;
