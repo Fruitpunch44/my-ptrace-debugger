@@ -9,47 +9,6 @@ break_point* break_point_list= NULL;
 
 //do later i'm lazy
 void modify_reg(pid_t child_proc,uint64_t reg,uint64_t value){
-  struct user_regs_struct reg;
-  if(ptrace(PTRACE_GETREGS,child_proc,NULL,&reg) <0){
-    fprintf(stderr,"error in ptrace_getregs %s",strerror(errno));
-    return;
-  }
-  switch(reg){
-    case RAX:
-      reg.rax = value;
-      break;
-    case RBX:
-      reg.rbx = value;
-      break;
-    case RCX:
-      reg.rcx = value;
-      break;
-    case RDX:
-      reg.rdx = value;
-      break;
-    case RSI:
-      reg.rsi = value;
-      break;
-    case RDI:
-      reg.rdi = value;
-      break;
-    case RSP:
-      reg.rsp = value;
-      break;
-    case RBP:
-      reg.rbp = value;
-      break;
-    case RIP:
-      reg.rip = value;
-      break;
-    default:
-      fprintf(stderr,"unknown register %llx",reg);
-      return;
-  }
-  if(ptrace(PTRACE_SETREGS,child_proc,NULL,&reg) <0){
-    fprintf(stderr,"error in ptrace_setregs %s",strerror(errno));
-    return;
-  }
 }
 
 void print_wait_status(int status){
