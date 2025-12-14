@@ -17,7 +17,7 @@ void print_wait_status(int wait_status);
 void set_break_point(pid_t child_proc,uint64_t address);
 void load_program(const char *program);
 void next_instruction(pid_t child_proc);
-void modify_reg(pid_t child_proc,uint64_t reg,uint64_t value);
+void modify_reg(pid_t child_proc,const char *reg,uint64_t value)
 void dump_memory(pid_t child_proc,uint64_t address, uint64_t length);
 void dissassemble_instruction(pid_t child_proc,char *func_name);
 

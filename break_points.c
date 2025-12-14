@@ -26,7 +26,6 @@ void add_breakpoint(break_point** head, uint64_t address,uint64_t data){
   temp->next = new_entry;
 }
 
-//kind useless remove later
 break_point* find_breakpoint(break_point* head ,uint64_t address){
   break_point *temp =head;
   while(temp !=NULL){

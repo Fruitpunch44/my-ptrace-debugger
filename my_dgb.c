@@ -8,46 +8,39 @@ MODIFIY REGISTER/ADDRESS VALUE*/
 break_point* break_point_list= NULL;
 
 //do later i'm lazy
-void modify_reg(pid_t child_proc,uint64_t reg,uint64_t value){
+void modify_reg(pid_t child_proc,const char *reg,uint64_t value){
   struct user_regs_struct reg;
   if(ptrace(PTRACE_GETREGS,child_proc,NULL,&reg) <0){
     fprintf(stderr,"error in ptrace_getregs %s",strerror(errno));
     return;
   }
-  switch(reg){
-    case RAX:
-      reg.rax = value;
-      break;
-    case RBX:
-      reg.rbx = value;
-      break;
-    case RCX:
-      reg.rcx = value;
-      break;
-    case RDX:
-      reg.rdx = value;
-      break;
-    case RSI:
-      reg.rsi = value;
-      break;
-    case RDI:
-      reg.rdi = value;
-      break;
-    case RSP:
-      reg.rsp = value;
-      break;
-    case RBP:
-      reg.rbp = value;
-      break;
-    case RIP:
-      reg.rip = value;
-      break;
-    default:
-      fprintf(stderr,"unknown register %llx",reg);
-      return;
+  if(strncmp(reg,"rip",strlen("rip")) ==0){
+    reg.rip = value;
+  }
+  else if(strncmp(reg,"rax",strlen("rax")) ==0){
+    reg.rax = value;
+  }
+  else if(strncmp(reg,"rbx",strlen("rbx")) ==0){
+    reg.rbx = value;
+  }
+  else if(strncmp(reg,"rcx",strlen("rcx")) ==0){
+    reg.rcx = value;
+  }
+  else if(strncmp(reg,"rdx",strlen("rdx")) ==0){
+    reg.rdx = value;
+  }
+  else{
+    fprintf(stderr,"unknown register %s",reg);
+    return;
   }
   if(ptrace(PTRACE_SETREGS,child_proc,NULL,&reg) <0){
     fprintf(stderr,"error in ptrace_setregs %s",strerror(errno));
+    return;
+  }
+}
+void modify_address(pid_t child_proc,uint64_t address,uint64_t value){
+  if(ptrace(PTRACE_POKEDATA,child_proc,(void*)address,value) <0){
+    fprintf(stderr,"error in ptrace_pokedata %s",strerror(errno));
     return;
   }
 }
@@ -135,8 +128,53 @@ void next_instruction(pid_t child_proc){
   waitpid(child_proc,&wait_status,0);
 }
 
-//add continue
-void continue(pid_t child_proc);
+//add contine func
+void continue_dgb(pid_t child_proc){
+  int wait_status;
+  uint64_t address_rewind;
+  struct user_regs_struct reg;
+  if(ptrace(PTRACE_CONT,child_proc,NULL,NULL)<0){
+    fprintf(stderr,"error in ptrace_cont %s",strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+  waitpid(child_proc,&wait_status,0);
+  //check when a breakpoint is hit
+
+  if(WIFSTOPPED(wait_status)&& WSTOPSIG(wait_status)==SIGTRAP){
+    if(ptrace(PTRACE_GETREGS,child_proc,NULL,&reg)<0){
+      fprintf(stderr,"error in ptrace_get regs %s",strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    fprintf(stdout,"Breakpoint at 0x%llx",reg.rip);
+    address_rewind = reg.rip -1;//because of int3 instruction 
+
+    break_point* bp = find_breakpoint(break_point_list,address_rewind);
+    if(bp !=NULL){
+      //restore original instruction
+      if(ptrace(PTRACE_POKEDATA,child_proc,(void*)bp->address,bp->data)<0){
+        fprintf(stderr,"error in restoring instruction %s",strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+      //rewind rip 
+      reg.rip = address_rewind;
+      if(ptrace(PTRACE_SETREGS,child_proc,NULL,&reg)<0){
+        fprintf(stderr,"error in setting regs %s",strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+      //single step to execute original instruction
+      if(ptrace(PTRACE_SINGLESTEP,child_proc,NULL,NULL)<0){
+        fprintf(stderr,"error in single step after breakpoint %s",strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+      //wait for the single step to complete
+      waitpid(child_proc,&wait_status,0);
+      //reinsert the breakpoint
+      set_break_point(child_proc,bp->address);//add the break point back to the list
+
+    }
+  }
+  print_wait_status(wait_status);
+}
 
 void dump_bytes(uint64_t data){
   unsigned char *bytes= (unsigned char*)&data;//always cast to unsigned char
@@ -259,6 +297,26 @@ int main(int argc, char *argv[])
       position_str[strcspn(position_str,"\n")];
       int position = atoi(position_str);
       delete_break_point(child,position);
+    }
+
+    else if(strncmp(commands,"rip",strlen("rip"))==0){
+      get_current_rip(child);
+    }
+    else if(strncmp(commands,"set R",strlen("set R"))==0){
+      fprintf(stdout,"this is for setting your registers/address value\n");
+      char target_reg[20];
+      char target_value[20];//use with sense or you crash yor program
+      uint64_t value;
+      fprintf(stdout,"enter a register you want to modify(rip,rax,rbx,rcx,rdx) ");
+      fgets(target_reg,sizeof(target_reg),stdin);
+      target_reg[strcspn(target_reg,"\n")];
+      fprintf(stdout,"enter a value; ");
+      fgets(target_value,sizeof(target_value),stdin);
+      target_value[strcspn(target_value,"\n")];
+      value=strtoull(target_value,NULL,16);
+      modify_reg(child,target_reg,value);
+
+      
     }
     else{
       fprintf(stdout,"unknown command %s",commands);
