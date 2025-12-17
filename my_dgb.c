@@ -1,11 +1,14 @@
 #include"break_points.h"
 #include"my_dbg.h"
+#include"command_history.h"
 
 /*TODO
-MODIFIY REGISTER/ADDRESS VALUE*/
+MODIFIY REGISTER/ADDRESS VALUE
+add tui(ncurses) have never used it should be fun*/
 
-//global break point List
+//global break point and command List
 break_point* break_point_list= NULL;
+
 
 //do later i'm lazy
 void modify_reg(pid_t child_proc,const char *reg,uint64_t value){
@@ -64,7 +67,10 @@ void print_wait_status(int status){
 }
 
 void load_program(const char *program){
-  personality(ADDR_NO_RANDOMIZE); //disable aslr
+  if(personality(ADDR_NO_RANDOMIZE)<0){
+    fprintf(stderr,"error in disabling aslr %s",strerror(errno));
+    exit(EXIT_FAILURE);
+  } //disable aslr
   fprintf(stdout,"LOADING PROGRAM %s",program);
   if(ptrace(PTRACE_TRACEME,0,NULL,NULL)<0){
     fprintf(stderr,"error in ptrace_traceme\n");
@@ -102,6 +108,13 @@ void set_break_point(pid_t child_proc,uint64_t address){
   add_breakpoint(&break_point_list,address,data);
 }
 
+void reinsert_break_point(pid_t child_proc,break_point* bp){
+  uint64_t data_with_INT3 = (bp->data & ~0xff) | 0xcc;//signal to set break point
+  if(ptrace(PTRACE_POKEDATA,child_proc,(void*)bp->address,data_with_INT3) <0){
+    fprintf(stderr,"error in restoring instruction %s",strerror(errno));
+    return;
+  }
+}
 void delete_break_point(pid_t child_proc,int postion){
   break_point *bp = break_point_list;
   for(int i =0; bp!=NULL && i<postion;i++){
@@ -111,7 +124,7 @@ void delete_break_point(pid_t child_proc,int postion){
     fprintf(stderr,"break point not found");
   }
   //remove int 3 signal
-  if(ptreace(PTRACE_POKEDATA,child_proc,(void*)bp->address,bp->data) <0){
+  if(ptrace(PTRACE_POKEDATA,child_proc,(void*)bp->address,bp->data) <0){
     fprintf(stderr,"error in restoring instruction %s",strerror(errno));
     return;
   }
@@ -128,7 +141,8 @@ void next_instruction(pid_t child_proc){
   waitpid(child_proc,&wait_status,0);
 }
 
-//add contine func
+//add contine func 
+//omo this was a lot
 void continue_dgb(pid_t child_proc){
   int wait_status;
   uint64_t address_rewind;
@@ -138,15 +152,14 @@ void continue_dgb(pid_t child_proc){
     exit(EXIT_FAILURE);
   }
   waitpid(child_proc,&wait_status,0);
-  //check when a breakpoint is hit
-
+  //check when a breakpoint is hit and when it returns a sigtrap
   if(WIFSTOPPED(wait_status)&& WSTOPSIG(wait_status)==SIGTRAP){
     if(ptrace(PTRACE_GETREGS,child_proc,NULL,&reg)<0){
       fprintf(stderr,"error in ptrace_get regs %s",strerror(errno));
       exit(EXIT_FAILURE);
     }
     fprintf(stdout,"Breakpoint at 0x%llx",reg.rip);
-    address_rewind = reg.rip -1;//because of int3 instruction 
+    address_rewind = reg.rip -1;//because of int3 instructin subtracting 1 
 
     break_point* bp = find_breakpoint(break_point_list,address_rewind);
     if(bp !=NULL){
@@ -167,9 +180,10 @@ void continue_dgb(pid_t child_proc){
         exit(EXIT_FAILURE);
       }
       //wait for the single step to complete
+      
       waitpid(child_proc,&wait_status,0);
       //reinsert the breakpoint
-      set_break_point(child_proc,bp->address);//add the break point back to the list
+      reinsert_break_point(child_proc,bp);//add the break point back to the list
 
     }
   }
@@ -224,7 +238,7 @@ int main(int argc, char *argv[])
 {
   const char *program = argv[2];
   int wait_status;
-  char commands[212];
+  char *commands;
 
   //check for file existence
   if(access(program,F_OK) == 0 && access(program,R_OK)==0){
@@ -248,80 +262,27 @@ int main(int argc, char *argv[])
     print_wait_status(wait_status);
   }
   while(1){
-
-    fprintf(stdout,"my_dbg> ");
-    fgets(commands,sizeof(commands),stdin);
-    commands[strcspn(commands,"\n")] = 0;//remove newline character
-
-    if(strncmp(commands,"break",strlen("break")) == 0){
-      char address_str[20];
-      fprintf(stdout,"enter address to set break point: ");
-      fgets(address_str,sizeof(address_str),stdin);
-      uint64_t address = strtoull(address_str,NULL,16);//convert string to uint64_t
-      set_break_point(child,address);
+    commands = readline("my_dbg> ");
+    if(!commands){
+      break; 
     }
-    else if(strncmp(commands,"continue",strlen("continue")) == 0){
-      if(ptrace(PTRACE_CONT,child,NULL,NULL)<0){
-        fprintf(stderr,"error in ptrace_cont %s",strerror(errno));
-        exit(EXIT_FAILURE);
+    if(*commands){
+      add_history(commands);
+    }
+    char  *cmd = strtok(commands," ");
+    char *args= strtok(NULL,"");
+
+    for(COMMANDS* commands=various_commands; commands->name !=NULL;commands++){
+      if(strcmp(cmd,commands->name)==0){
+        commands->func(args,child);
+        break;
       }
-      //turn this to a function later
-      waitpid(child,&wait_status,0);
-      print_wait_status(wait_status);
     }
-    else if(strncmp(commands,"step",strlen("step")) == 0){
-      next_instruction(child);
-    }
-    else if(strncmp(commands,"registers",strlen("registers")) == 0){
-      list_registers(child);
-    }
-    else if(strncmp(commands,"disassemble",strlen("disassemble")) == 0){
-      char func[64];
-      fprintf(stdout,"enter the func you want to disassemble: ");
-      fgets(func,sizeof(func),stdin);
-      func[strcspn(func,"\n")] =0;
-      dissassemble_instruction(child,func);
-    }
-    else if(strncmp(commands,"list b",strlen("list b"))==0){
-      print_break_point(&break_point_list);
-    }
-    else if(strncmp(commands,"exit",strlen("exit"))==0){
-      fprintf(stdout,"exiting debugger\n");
-      exit(EXIT_SUCCESS);
-    }
-    else if(strncmp(commands,"delete b",strlen("delete b"))==0){
-      char position_str[10];
-      print_break_points(&break_point_list);
-      fprintf(stdout,"enter break point position to delete: ");
-      fgets(position_str,sizeof(position_str),stdin);
-      position_str[strcspn(position_str,"\n")];
-      int position = atoi(position_str);
-      delete_break_point(child,position);
     }
 
-    else if(strncmp(commands,"rip",strlen("rip"))==0){
-      get_current_rip(child);
-    }
-    else if(strncmp(commands,"set R",strlen("set R"))==0){
-      fprintf(stdout,"this is for setting your registers/address value\n");
-      char target_reg[20];
-      char target_value[20];//use with sense or you crash yor program
-      uint64_t value;
-      fprintf(stdout,"enter a register you want to modify(rip,rax,rbx,rcx,rdx) ");
-      fgets(target_reg,sizeof(target_reg),stdin);
-      target_reg[strcspn(target_reg,"\n")];
-      fprintf(stdout,"enter a value; ");
-      fgets(target_value,sizeof(target_value),stdin);
-      target_value[strcspn(target_value,"\n")];
-      value=strtoull(target_value,NULL,16);
-      modify_reg(child,target_reg,value);
-
-      
-    }
-    else{
-      fprintf(stdout,"unknown command %s",commands);
-    }
-    
-  }
+   
   return 0;
 }
+
+
+//

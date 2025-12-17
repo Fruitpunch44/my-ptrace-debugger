@@ -45,8 +45,11 @@ void print_break_points(break_point* head){
     temp = temp->next;
     number++;
   }
-  printf("No breakpoint entry\n");
-  return;
+  if(head ==NULL){ 
+    printf("No breakpoint entry\n");
+    return;
+}
+
 }
 void delete_breakpoint_list(break_point** head,int position){
   if(*head ==NULL){
