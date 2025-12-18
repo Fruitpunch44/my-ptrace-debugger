@@ -4,11 +4,10 @@
 
 /*TODO
 MODIFIY REGISTER/ADDRESS VALUE
+add function to help parse hex values to string
+add a way to handle pie executables
 add tui(ncurses) have never used it should be fun*/
-
-//global break point and command List
-break_point* break_point_list= NULL;
-
+break_point* break_point_list =NULL;
 
 //do later i'm lazy
 void modify_reg(pid_t child_proc,const char *reg,uint64_t value){
@@ -103,8 +102,11 @@ void set_break_point(pid_t child_proc,uint64_t address){
   uint64_t data = ptrace(PTRACE_PEEKDATA, child_proc,(void*)address,NULL);
   new_data = data;
   new_data = (data & ~0xff) | INT3;
-  ptrace(PTRACE_POKEDATA,child_proc,(void*)address,new_data);
-  fprintf(stdout,"setting break point at 0x%llx: 0x%llxx\n",address,data);
+  if(ptrace(PTRACE_POKEDATA,child_proc,(void*)address,new_data) <0){
+    fprintf(stderr,"error in setting break point %s",strerror(errno));
+    return;
+  }
+  fprintf(stdout,"setting break point at 0x%llx: 0x%llx\n",address,data);
   add_breakpoint(&break_point_list,address,data);
 }
 
@@ -158,7 +160,7 @@ void continue_dgb(pid_t child_proc){
       fprintf(stderr,"error in ptrace_get regs %s",strerror(errno));
       exit(EXIT_FAILURE);
     }
-    fprintf(stdout,"Breakpoint at 0x%llx",reg.rip);
+    fprintf(stdout,"Breakpoint at 0x%llx\n:",reg.rip);
     address_rewind = reg.rip -1;//because of int3 instructin subtracting 1 
 
     break_point* bp = find_breakpoint(break_point_list,address_rewind);
@@ -200,6 +202,7 @@ void dump_bytes(uint64_t data){
   }
   fprintf(stdout,"\n");
 }
+//add function to convert hex to string like how x/s works for a start 
 
 void get_current_rip(pid_t child_proc){
   struct user_regs_struct regs;
@@ -216,7 +219,8 @@ void get_current_rip(pid_t child_proc){
     fprintf(stderr,"error in ptrace_peekdata %s",strerror(errno));
     return;
   }
-  fprintf(stdout,"Read 8 bytes at 0x%llx: %016lx\n",current_rip,data);
+  fprintf(stdout,"Read 8 bytes at 0x%llx: 0%016lx\n",current_rip,data);
+  dump_bytes(data);
 }
 
 void list_registers(pid_t child_proc){
@@ -238,7 +242,7 @@ int main(int argc, char *argv[])
 {
   const char *program = argv[2];
   int wait_status;
-  char *commands;
+  char *input_commands;
 
   //check for file existence
   if(access(program,F_OK) == 0 && access(program,R_OK)==0){
@@ -262,25 +266,32 @@ int main(int argc, char *argv[])
     print_wait_status(wait_status);
   }
   while(1){
-    commands = readline("my_dbg> ");
-    if(!commands){
+    input_commands = readline("my_dbg> ");
+    if(!input_commands){
       break; 
     }
-    if(*commands){
-      add_history(commands);
+    if(*input_commands){
+      add_history(input_commands);
     }
-    char  *cmd = strtok(commands," ");
+    char  *cmd = strtok(input_commands," ");
     char *args= strtok(NULL,"");
+    int commmand_found =0;
 
-    for(COMMANDS* commands=various_commands; commands->name !=NULL;commands++){
-      if(strcmp(cmd,commands->name)==0){
-        commands->func(args,child);
+    for(COMMANDS* cmds=various_commands; cmds->name !=NULL;cmds++){
+      if(strcmp(cmd,cmds->name)==0){
+        cmds->func(args,child);
+        commmand_found =1;
+        }
         break;
       }
+    if(!commmand_found){
+      fprintf(stderr,"unknown command %s\n",cmd);
+      free(input_commands);
     }
     }
 
    
+  free(input_commands);
   return 0;
 }
 

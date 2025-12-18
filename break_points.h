@@ -11,6 +11,8 @@ typedef struct breakpoints{
     struct breakpoints* next;
 }break_point;
 
+extern break_point* break_point_list;
+
 break_point* create_breakpoint_list(uint64_t address,uint64_t data);
 void add_breakpoint(break_point** head, uint64_t address,uint64_t data);
 void print_break_points(break_point* head);

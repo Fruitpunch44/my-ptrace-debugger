@@ -19,19 +19,7 @@ typedef struct commands{
 }COMMANDS;
 
 //varous commands supported by the debugger
-COMMANDS various_commands[] = {
-    {"break", breakpoint_command, "Set a breakpoint at a specified address."},
-    {"continue", continue_command, "Continue execution until the next breakpoint."},
-    {"step", step_command, "Execute the next instruction."},
-    {"registers", registers_command, "List the current values of CPU registers."},
-    {"disassemble", disassemble_command, "Disassemble a function by name."},
-    {"list b", list_b_command, "List all current breakpoints."},
-    {"delete b", delete_b_command, "Delete a breakpoint by its position."},
-    {"rip", rip_command, "Get the current RIP instruction pointer."},
-    {"modify reg", modify_reg_command, "Modify the value of a specified register."},
-    {"exit", exit_command, "Exit the debugger."},
-    {NULL, NULL}
-};
+extern COMMANDS various_commands[];
 
 void breakpoint_command(char *args, pid_t child_proc);
 void continue_command(char *args, pid_t child_proc);

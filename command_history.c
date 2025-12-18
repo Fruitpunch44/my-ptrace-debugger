@@ -4,6 +4,20 @@
 //no idea if this will work but we'll see
 //push and test later lol
 
+COMMANDS various_commands[] = {
+    {"break", breakpoint_command, "Set a breakpoint at a specified address."},
+    {"continue", continue_command, "Continue execution until the next breakpoint."},
+    {"step", step_command, "Execute the next instruction."},
+    {"registers", registers_command, "List the current values of CPU registers."},
+    {"disassemble", disassemble_command, "Disassemble a function by name."},
+    {"list", list_b_command, "List all current breakpoints."},
+    {"delete", delete_b_command, "Delete a breakpoint by its position."},
+    {"rip", rip_command, "Get the current RIP instruction pointer."},
+    {"modify reg", modify_reg_command, "Modify the value of a specified register."},
+    {"exit", exit_command, "Exit the debugger."},
+    {NULL, NULL}
+};
+
 void breakpoint_command(char *args, pid_t child_proc){
     if(args == NULL){
       fprintf(stderr,"no address provided for breakpoint\n");
@@ -50,7 +64,7 @@ void list_b_command(char *args, pid_t child_proc){
       return;
     }
     args[strcspn(args,"\n")] =0;//remove newline if any
-    print_break_points(break_point_list);
+    print_break_points();
 }
 void delete_b_command(char *args, pid_t child_proc){
     if(args == NULL){
