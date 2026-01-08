@@ -16,8 +16,7 @@ COMMANDS various_commands[] = {
     {"modify reg","m", modify_reg_command, "Modify the value of a specified register."},
     {"exit","e", exit_command, "Exit the debugger."},
     {"help","h", help_command, "display various commands"},
-    {"modify","x",modify_addr_command,"modify value at any given address"}
-    {"", handle_enter, "handle enter key press"},
+    {"modify","x",modify_addr_command,"modify value at any given address"},
     {NULL, NULL}
 };
 
