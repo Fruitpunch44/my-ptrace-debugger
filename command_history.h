@@ -14,6 +14,7 @@ typedef void(*command_func)(char *args, pid_t child_proc);
 
 typedef struct commands{
     char *name;//command name
+    char *short_hand;
     command_func func;//function pointer for the commands
     char *doc;//documentation
 }COMMANDS;
@@ -31,6 +32,9 @@ void delete_b_command(char *args, pid_t child_proc);
 void rip_command(char *args, pid_t child_proc);
 void modify_reg_command(char *args, pid_t child_proc);
 void exit_command(char *args, pid_t child_proc);    
+void help_command(char *args, pid_t child_proc);
+void handle_enter(char *args, pid_t child_proc);
+void modify_addr_command(char *args,pid_t child_proc);
 
 
 #endif

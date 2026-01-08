@@ -1,11 +1,14 @@
 #include"break_points.h"
 #include"my_dbg.h"
 #include"command_history.h"
+#include"parse_elf_info.h"
 
 /*TODO
 MODIFIY REGISTER/ADDRESS VALUE
 add function to help parse hex values to string
 add a way to handle pie executables
+add a way to parse the function name from the elf header for disassembly 
+with capstone
 add tui(ncurses) have never used it should be fun*/
 break_point* break_point_list =NULL;
 
@@ -40,6 +43,7 @@ void modify_reg(pid_t child_proc,const char *reg,uint64_t value){
     return;
   }
 }
+
 void modify_address(pid_t child_proc,uint64_t address,uint64_t value){
   if(ptrace(PTRACE_POKEDATA,child_proc,(void*)address,value) <0){
     fprintf(stderr,"error in ptrace_pokedata %s",strerror(errno));
@@ -95,6 +99,40 @@ void dissassemble_instruction(pid_t child_proc,char *func_name){
     waitpid(dissasembly,&wait_status,0);
   }
 }
+
+/*
+void dissassemble_instruction2(pid_t child_proc,char *func){
+  int wait_status;
+  char text_data[400];
+  pid_t disassemble= fork();
+  if(disassemble == 0){
+    //try to get the bytes at the function address
+    for(size_t i=0 ;i <sizeof(text_data);i++){
+      text_data[i]= (char)ptrace(PTRACE_PEEKDATA,child_proc,(void*)(func + i),NULL);
+    }
+    csh handle;
+    cs_insn *insn;
+    size_t count;
+    if(cs_open(CS_ARCH_X86,CS_MODE_64,&handle) != CS_ERR_OK){
+      fprintf(stderr,"error in capstone open");
+      exit(EXIT_FAILURE);
+    }
+    count = cs_disasm(handle,(uint8_t*)text_data,sizeof(text_data),(uint64_t)func,0,&insn);
+    if(count >0){
+      for(size_t j=0;j <count;j++){
+        printf("0x%"PRIx64":\t%s\t%s\n",insn[j].address,insn[j].mnemonic,insn[j].op_str);
+      }
+      cs_free(insn,count);
+    }
+    else{
+      fprintf(stderr,"failed to disassemble given code!\n");
+    }
+  }
+}
+  does not work yet but the logic maybe correct lol
+  have to figure out a way to get the func address from the elf file
+  use the objdump for now
+ */
 
 void set_break_point(pid_t child_proc,uint64_t address){
   uint64_t new_data;
@@ -194,13 +232,25 @@ void continue_dgb(pid_t child_proc){
 
 void dump_bytes(uint64_t data){
   unsigned char *bytes= (unsigned char*)&data;//always cast to unsigned char
-  for(size_t i=0; i <sizeof(uint64_t);i++){
-    if(i%16 ==0){
-      fprintf(stdout,"\n%08lx: ",(unsigned long)i);
-    }
-    fprintf(stdout,"%02x",bytes[i]);
-  }
-  fprintf(stdout,"\n");
+  csh handle;
+	cs_insn *insn;
+	size_t count;
+
+	if (cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK)
+		return;
+	count = cs_disasm(handle, bytes, sizeof(bytes)-1, 0x1000, 0, &insn);
+	if (count > 0) {
+		size_t j;
+		for (j = 0; j < count; j++) {
+			printf("0x%"PRIx64":\t%s\t\t%s\n", insn[j].address, insn[j].mnemonic,
+					insn[j].op_str);
+		}
+
+		cs_free(insn, count);
+	} else
+		printf("ERROR: Failed to disassemble given code!\n");
+
+	cs_close(&handle);
 }
 //add function to convert hex to string like how x/s works for a start 
 
@@ -270,30 +320,60 @@ int main(int argc, char *argv[])
     if(!input_commands){
       break; 
     }
-    if(*input_commands){
-      add_history(input_commands);
+    //handle empty input to repeat last command and prevent seg fault
+    if(*input_commands == '\0'){
+      free(input_commands);
+      if(history_length>0){
+        HIST_ENTRY *last = history_get(history_length);
+        if(last->line){
+          fprintf(stdout,"repeating %s\n",last->line);
+          input_commands = strdup(last->line);
+          }
+        }
+      else{
+        continue;
+      }
     }
+    else{
+        add_history(input_commands);
+        }
+  
     char  *cmd = strtok(input_commands," ");
     char *args= strtok(NULL,"");
-    int commmand_found =0;
+    int found_command =0;
+    COMMANDS *cmds=various_commands;
 
-    for(COMMANDS* cmds=various_commands; cmds->name !=NULL;cmds++){
+    for(cmds; cmds->name !=NULL;cmds++){
       if(strcmp(cmd,cmds->name)==0){
         cmds->func(args,child);
-        commmand_found =1;
-        }
+        found_command =1 ; 
         break;
       }
-    if(!commmand_found){
-      fprintf(stderr,"unknown command %s\n",cmd);
+    }
+    if(strcmp(cmd,"run")==0 || strcmp(cmd,"ru")==0){
+      if(child>0){
+        kill(child,SIGKILL);
+        waitpid(child,&wait_status,0);
+      }
+      child=fork();
+      if(child==0){
+        load_program(program);
+      }
+      else{
+        waitpid(child,&wait_status,0);
+        print_wait_status(wait_status);
+      }
+      free(input_commands);
+      continue;
+
+    }
+    if(!found_command){
+      fprintf(stderr,"command on found\n");
       free(input_commands);
     }
-    }
-
-   
+  
+  }
   free(input_commands);
   return 0;
 }
 
-
-//
