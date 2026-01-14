@@ -1,7 +1,11 @@
 #include "parse_elf_info.h"
 #include "my_dbg.h"
+#include "func_helpr.h"
 
-void do_something(const char *program){
+
+
+ func_array do_something(const char *program){
+    func_array my_funcs = create_func_array();
     ElfW(Ehdr) elf_header;
     FILE *elf_file;
     elf_file =fopen(program,"rb");
@@ -84,21 +88,36 @@ void do_something(const char *program){
     }
     fseek(elf_file,strtab_hdr->sh_offset,SEEK_SET);
     fread(strtab,strtab_hdr->sh_size,1,elf_file);
-
+    func_info *func_info=malloc(sizeof(func_info));
+    if(!func_info){
+        fprintf(stderr,"unable to allocate memory for function info");
+        exit(EXIT_FAILURE);
+    }
+    int found_func = 0;
     for(int i =0;i<num_sym;i++){
         if (ELF32_ST_TYPE(symbols[i].st_info) == STT_FUNC &&
             symbols[i].st_size > 0){
             const char *func_name = strtab + symbols[i].st_name;
-            fprintf(stdout,"Function found: %s at address 0x%lx\n",func_name,symbols[i].st_value);
+            fprintf(stdout,"Function found: %s at address 0x%lx with size %lu\n",func_name,symbols[i].st_value,symbols[i].st_size);
             //get function name for later use in disassembly
             //stick with objdump for now
-    
+            func_info->name = strdup(func_name);
+            func_info->address = symbols[i].st_value;
+            func_info->size =symbols[i].st_size;
+            add_array(&my_funcs,func_info);
+            found_func = 1;
             }
-        else{
-            fprintf(stderr,"No function found the binary is stripped");
-        }
     }
-
+    if(!found_func){
+        fprintf(stdout,"no func found \n");
+    }
+    free(func_info);
+    free(text_data);
+    free(symbols);
+    free(strtab);
+    free(shstrtab);
+    free(section_headers);
+    return my_funcs;
 }
 
 

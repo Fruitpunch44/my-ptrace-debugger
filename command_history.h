@@ -19,7 +19,7 @@ typedef struct commands{
     char *doc;//documentation
 }COMMANDS;
 
-//varous commands supported by the debugger
+//various commands supported by the debugger
 extern COMMANDS various_commands[];
 
 void breakpoint_command(char *args, pid_t child_proc);

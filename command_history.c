@@ -1,6 +1,7 @@
 #include"command_history.h"
 #include"my_dbg.h"
 #include"break_points.h"
+#include"func_helpr.h"
 //no idea if this will work but we'll see
 //push and test later lol
 
@@ -16,8 +17,7 @@ COMMANDS various_commands[] = {
     {"modify reg","m", modify_reg_command, "Modify the value of a specified register."},
     {"exit","e", exit_command, "Exit the debugger."},
     {"help","h", help_command, "display various commands"},
-    {"modify","x",modify_addr_command,"modify value at any given address"}
-    {"", handle_enter, "handle enter key press"},
+    {"modify","x",modify_addr_command,"modify value at any given address"},
     {NULL, NULL}
 };
 
@@ -27,6 +27,7 @@ void breakpoint_command(char *args, pid_t child_proc){
       return;
     }
     args[strcspn(args,"\n")] =0;//remove newline if any
+    search_for_func(&fun,args);
     uint64_t address = strtoull(args,NULL,16);
     set_break_point(child_proc,address);
     }

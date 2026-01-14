@@ -5,9 +5,7 @@
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
-
-//create a struct to hold function info later
-
+#include"func_helpr.h"
 extern const char *program; 
 
 //check the system type if it's 64 bit
@@ -20,5 +18,5 @@ extern const char *program;
 #endif
 
 
-void do_something(const char *program);
+func_array do_something(const char *program);
 #endif

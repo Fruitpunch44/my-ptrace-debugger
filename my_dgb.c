@@ -2,6 +2,7 @@
 #include"my_dbg.h"
 #include"command_history.h"
 #include"parse_elf_info.h"
+#include"func_helpr.h"
 
 /*TODO
 MODIFIY REGISTER/ADDRESS VALUE
@@ -100,15 +101,29 @@ void dissassemble_instruction(pid_t child_proc,char *func_name){
   }
 }
 
-/*
+
 void dissassemble_instruction2(pid_t child_proc,char *func){
   int wait_status;
-  char text_data[400];
-  pid_t disassemble= fork();
-  if(disassemble == 0){
+  func_array my_funcs = do_something(program);
+  uint64_t func_address;
+  size_t func_size;
+  for(size_t i =0;i<my_funcs.count;i++){
+    if(strcmp(my_funcs.functions[i].name,func)==0){
+      fprintf(stdout,"function %s found at address 0x%llx\n",func,my_funcs.functions[i].address);
+      func_address = my_funcs.functions[i].address;
+      func_size = (size_t)my_funcs.functions[i].size;
+      break;
+    }
+  }
+  printf("size of func %llu\n",func_size);
+  char *text_data = malloc(func_size);
+  if(!text_data){
+    fprintf(stderr,"error in allocation\n");
+    exit(EXIT_FAILURE);
+  }
     //try to get the bytes at the function address
-    for(size_t i=0 ;i <sizeof(text_data);i++){
-      text_data[i]= (char)ptrace(PTRACE_PEEKDATA,child_proc,(void*)(func + i),NULL);
+    for(size_t i=0 ;i <func_size;i++){
+      text_data[i]= ptrace(PTRACE_PEEKDATA,child_proc,(void*)(func_address + i),NULL);
     }
     csh handle;
     cs_insn *insn;
@@ -117,7 +132,7 @@ void dissassemble_instruction2(pid_t child_proc,char *func){
       fprintf(stderr,"error in capstone open");
       exit(EXIT_FAILURE);
     }
-    count = cs_disasm(handle,(uint8_t*)text_data,sizeof(text_data),(uint64_t)func,0,&insn);
+    count = cs_disasm(handle,text_data,func_size,func_address,0,&insn);
     if(count >0){
       for(size_t j=0;j <count;j++){
         printf("0x%"PRIx64":\t%s\t%s\n",insn[j].address,insn[j].mnemonic,insn[j].op_str);
@@ -127,12 +142,10 @@ void dissassemble_instruction2(pid_t child_proc,char *func){
     else{
       fprintf(stderr,"failed to disassemble given code!\n");
     }
-  }
+
+	cs_close(&handle);
 }
-  does not work yet but the logic maybe correct lol
-  have to figure out a way to get the func address from the elf file
-  use the objdump for now
- */
+
 
 void set_break_point(pid_t child_proc,uint64_t address){
   uint64_t new_data;
