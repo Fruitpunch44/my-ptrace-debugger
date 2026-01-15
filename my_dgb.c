@@ -286,20 +286,40 @@ void get_current_rip(pid_t child_proc){
   dump_bytes(data);
 }
 
-void list_registers(pid_t child_proc){
-  struct user_regs_struct regs;
-  if(ptrace(PTRACE_GETREGS,child_proc,NULL,&regs)<0){
-    fprintf(stderr,"error in ptrace_getregs %s",strerror(errno));
-  }
-  fprintf(stdout,"REGISTERS");
-  fprintf(stdout,"RAX : 0x%llxx\n  
-                  RBX : 0X%llx\n, 
-                  RCX : 0x%llx\n,
-                  RSP : 0x%llx\n
-                  RIP : 0x%llx\n
-                  RSI : 0x%llx\n",
-                  regs.rax,regs.rbx,regs.rcx,regs.rsp,regs.rip,regs.rsi);
+void list_registers(pid_t child_proc) {
+    struct user_regs_struct regs;
+
+    if (ptrace(PTRACE_GETREGS, child_proc, NULL, &regs) < 0) {
+        fprintf(stderr, "error in ptrace_getregs: %s\n", strerror(errno));
+        return;
+    }
+
+    fprintf(stdout,
+        "========== REGISTERS ==========\n"
+        "RAX: 0x%016llx  RBX: 0x%016llx  RCX: 0x%016llx\n"
+        "RDX: 0x%016llx  RSI: 0x%016llx  RDI: 0x%016llx\n"
+        "RBP: 0x%016llx  RSP: 0x%016llx  RIP: 0x%016llx\n"
+        "R8 : 0x%016llx  R9 : 0x%016llx  R10: 0x%016llx\n"
+        "R11: 0x%016llx  R12: 0x%016llx  R13: 0x%016llx\n"
+        "R14: 0x%016llx  R15: 0x%016llx\n"
+        "EFL: 0x%016llx\n"
+        "CS : 0x%016llx  SS : 0x%016llx\n"
+        "DS : 0x%016llx  ES : 0x%016llx\n"
+        "FS : 0x%016llx  GS : 0x%016llx\n"
+        "================================\n",
+        regs.rax, regs.rbx, regs.rcx,
+        regs.rdx, regs.rsi, regs.rdi,
+        regs.rbp, regs.rsp, regs.rip,
+        regs.r8,  regs.r9,  regs.r10,
+        regs.r11, regs.r12, regs.r13,
+        regs.r14, regs.r15,
+        regs.eflags,
+        regs.cs, regs.ss,
+        regs.ds, regs.es,
+        regs.fs, regs.gs
+    );
 }
+
 
 int main(int argc, char *argv[])
 {
