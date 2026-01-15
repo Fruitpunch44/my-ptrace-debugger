@@ -18,6 +18,7 @@ COMMANDS various_commands[] = {
     {"exit","e", exit_command, "Exit the debugger."},
     {"help","h", help_command, "display various commands"},
     {"modify","x",modify_addr_command,"modify value at any given address"},
+    {"func","f", func_command, "list all functions in the program"},
     {NULL, NULL}
 };
 
@@ -26,11 +27,39 @@ void breakpoint_command(char *args, pid_t child_proc){
       fprintf(stderr,"no address provided for breakpoint\n");
       return;
     }
+    int found_function =0;
     args[strcspn(args,"\n")] =0;//remove newline if any
-    search_for_func(&fun,args);
+    func_array funcs = do_something(program);
+    for(size_t i = 0; i < funcs.count;i++){
+      if(strcmp(args,funcs.functions[i].name)==0){
+        uint64_t address = funcs.functions[i].address;
+        set_break_point(child_proc,address);
+        found_function =1;
+        break;
+      }
+    }
+    if(!found_function){
     uint64_t address = strtoull(args,NULL,16);
     set_break_point(child_proc,address);
     }
+}
+void show_functions(char *args,pid_t child_proc){
+  if(args !=NULL){
+    fprintf(stderr,"this functions takes no argumenst\n");
+    return;
+  }
+  fprintf(stdout,"do something with this %d\n",child_proc);
+  func_array func= do_something(program);
+  fprintf(stdout,"\n%-4s | %-30s | %-18s  %-10s\n", "No.", "Function Name", "Address","Size");
+
+  for (size_t i = 0; i < func.count; i++) {
+    fprintf(stdout,"%-4zu | %-30s | 0x%016llx| %llu\n",
+           i + 1,
+           func.functions[i].name,
+           func.functions[i].address,
+           func.functions[i].size);
+  } 
+}
 void continue_command(char *args, pid_t child_proc){
     if(args != NULL){
       fprintf(stderr,"continue command does not take arguments\n");

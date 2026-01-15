@@ -34,6 +34,6 @@ void modify_reg_command(char *args, pid_t child_proc);
 void exit_command(char *args, pid_t child_proc);    
 void help_command(char *args, pid_t child_proc);
 void modify_addr_command(char *args,pid_t child_proc);
-
+void func_command(char *args, pid_t child_proc);
 
 #endif
