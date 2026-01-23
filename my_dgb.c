@@ -6,10 +6,9 @@
 
 /*TODO
 MODIFIY REGISTER/ADDRESS VALUE
-add function to help parse hex values to string
 add a way to handle pie executables
 add a way to parse the function name from the elf header for disassembly 
-with capstone
+with capstone-Done
 add tui(ncurses) have never used it should be fun*/
 break_point* break_point_list =NULL;
 
@@ -144,6 +143,7 @@ void dissassemble_instruction2(pid_t child_proc,char *func){
     }
 
 	cs_close(&handle);
+	free(text_data);
 }
 
 
