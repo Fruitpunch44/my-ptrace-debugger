@@ -53,6 +53,11 @@ Run with target binary:
 ./my_dbg <program>
 ```
 
+## Requirements
+- Linux (x86_64)
+- GCC or compatible C compiler
+- GNU Readline library
+- Capstone library
 
 ## TODO
 
